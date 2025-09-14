@@ -1,0 +1,92 @@
+\documentclass{standalone}
+\usepackage{tikz}
+\usepackage{xstring} % 为了按字符串判断删边
+\usetikzlibrary{calc}
+
+% \JoinKmNThreeD{<m>}{<n>}{<del> }
+% m: 上层完全图 K_m
+% n: 下层独立点个数
+% del: 要删掉的上层边，写成 "1-2, 2-4, 3-5" 这样的逗号分隔串；留空表示不删
+\newcommand{\JoinKmNThreeD}[3]{%
+\begin{tikzpicture}[
+  line cap=round, line join=round,
+  % ===== 选一个你喜欢的视角（下方四个预设任选其一）=====
+  x={(0.90cm,0.35cm)}, y={(0cm,1.00cm)}, z={(-0.90cm,0.35cm)}, % 等轴测
+% x={(1.00cm,0.15cm)}, y={(0cm,1.00cm)}, z={(-0.70cm,0.20cm)}, % 更俯视
+% x={(1.00cm,0.00cm)}, y={(0cm,1.00cm)}, z={(-0.45cm,0.45cm)}, % 更侧视
+% x={(1.00cm,0.00cm)}, y={(0cm,1.00cm)}, z={( 0.00cm,0.25cm)}, % 几乎俯视
+  every node/.style={circle, draw, fill=white, inner sep=1.6pt}
+]
+  % -------- 可调参数 --------
+  \def\H{1.6}        % 两层半间距：z = +H / -H
+  \def\S{2.3}        % 半透明平面的“半边长”（视觉辅助）
+  \def\Rtop{1.45}    % 上层 K_m 的半径
+  \def\Rbot{1.70}    % 下层点的圆周半径（也可改成直线排布）
+  \def\edgeopa{0.28} % 上下层连边透明度
+  \def\m{#1}         % K_m
+  \def\n{#2}         % n
+  \def\del{#3}       % 删边列表字符串，如 "1-2,3-4"
+
+  % -------- 两个平面（半透明） --------
+  \path[fill=blue!6, draw=blue!20]
+    (-\S,-\S, \H) -- (\S,-\S,\H) -- (\S,\S,\H) -- (-\S,\S,\H) -- cycle;
+  \path[fill=teal!6, draw=teal!20]
+    (-\S,-\S,-\H) -- (\S,-\S,-\H) -- (\S,\S,-\H) -- (-\S,\S,-\H) -- cycle;
+
+  % -------- 上层：K_m 的 m 个点（圆周均匀） --------
+  \foreach \i [evaluate=\i as \ang using (90+360*(\i-1)/\m)] in {1,...,\m}{
+    \coordinate (k\i) at ({\Rtop*cos(\ang)},{\Rtop*sin(\ang)},\H);
+  }
+
+  % -------- 下层：n 个独立点（圆周均匀；需要直线见文末替换块） --------
+  \foreach \b [evaluate=\b as \bang using (90+360*\b/\n)] in {1,...,\n}{
+    \coordinate (b\b) at ({\Rbot*cos(\bang)},{\Rbot*sin(\bang)},-\H);
+  }
+
+  % -------- 先画上下层连边（淡一些，减少遮挡感） --------
+  \foreach \i in {1,...,\m}{
+    \foreach \b in {1,...,\n}{
+      \draw[opacity=\edgeopa] (k\i) -- (b\b);
+    }
+  }
+
+  % -------- 节点（最后落点，保证在最上层） --------
+  \foreach \i in {1,...,\m}{ \node at (k\i) {\scriptsize \i}; }
+  \foreach \b in {1,...,\n}{ \node at (b\b) {}; }
+
+  % -------- 最后画上层 K_m 的边（更清晰） --------
+  \foreach \i in {1,...,\numexpr\m-1\relax}{
+    \pgfmathtruncatemacro{\jstart}{\i+1}
+    \foreach \j in {\jstart,...,\m}{
+      % 组装成 "i-j" 字符串并判断是否在 \del 中
+      \edef\pair{\i-\j}
+      \edef\pairrev{\j-\i}
+      \IfSubStr{\del}{\pair}{ % 如果出现，跳过
+      }{%
+        \IfSubStr{\del}{\pairrev}{ % 反向也要判断
+        }{%
+          \draw[line width=0.6pt] (k\i)--(k\j);
+        }%
+      }%
+    }
+  }
+
+\end{tikzpicture}%
+}
+
+\begin{document}
+% === 示例 ===
+
+% 1) 标准：上层 K5 + 下层 8 个点
+\JoinKmNThreeD{5}{8}{}
+
+\vspace{1cm}
+
+% 2) K4 + 下层 8 个点
+\JoinKmNThreeD{4}{8}{}
+
+\vspace{1cm}
+
+% 3) K4 - {1 2} + 下层 8 个点（删去上层顶点 1 和 2 的那条边）
+\JoinKmNThreeD{4}{8}{1-2}
+\end{document}
